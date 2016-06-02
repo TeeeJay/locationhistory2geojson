@@ -17,7 +17,7 @@ def create_feature(obj, filter):
     confidence_threshold = filter.get("confidence_threshold", None)
     if activities_filter is not None:
         #print obj
-        activities = set()
+        activities = obj['activities']
         if confidence_threshold is not None:
             #print str(obj['activities'])
             activities = set(activity for activity, confidence in obj['activities'].iteritems() if confidence >= confidence_threshold)
@@ -25,7 +25,12 @@ def create_feature(obj, filter):
 
         #print str(activities_filter)
         if not set(activities).intersection(activities_filter):
-            #print "hat?"
+            return None
+
+    accuracy_threshold = filter.get("accuracy_threshold", None)
+    if accuracy_threshold is not None:
+        accuracy = obj.get('accuracy')
+        if accuracy is not None and accuracy > accuracy_threshold:
             return None
 
     return {
@@ -78,7 +83,6 @@ def parse_location(stream, filter):
             elif prefix == 'locations.item.activitys.item.activities.item' and  event == 'end_map':
                 activities[activity] = confidence
 
-
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="Parse Google Location JSON data to GeoJSON")
@@ -87,7 +91,9 @@ if __name__ == '__main__':
 
     parser.add_argument('-a', '--activity', default=None, dest="activity_filter", help="Only include the activity(ies) given. Choose among: still, unknown, inVehicle, onBicycle, tilting, walking, onFoot, exitingVehicle, running. Use comma to separate multiple activities.")
 
-    parser.add_argument('-t', '--confidence-threshold', default=0, type=int, dest="confidence_threshold", help="Only include coordinates and activities with equal or higher value than the threshold [0-100]")
+    parser.add_argument('-t', '--confidence-threshold', default=None, type=int, dest="confidence_threshold", help="Only include coordinates and activities with equal or higher value than the threshold [0-100]")
+    
+    parser.add_argument('-c', '--accuracy-threshold', default=None, type=int, dest="accuracy_threshold", help="Only include when accuracy value is equal or less than this number. Value is given in inaccuracy in meters diameter for given location")
 
     args = parser.parse_args()
 
@@ -97,6 +103,6 @@ if __name__ == '__main__':
         print activities
 
     with open(args.input_file, 'r') as file:
-        for feature in parse_location(file, filter={"activities": activities, "confidence_threshold": args.confidence_threshold}):
+        for feature in parse_location(file, filter={"activities": activities, "confidence_threshold": args.confidence_threshold, "accuracy_threshold": args.accuracy_threshold}):
             if feature is not None:
                 print feature
